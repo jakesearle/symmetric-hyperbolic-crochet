@@ -16,7 +16,7 @@ import util
 HEIGHT = 0.6
 
 # Radius of the finished hyperbolic plane in cm
-R = 1.0
+R = 3.5
 
 # If the value "C(n) / C(n-1)" is unchanged after this many rows, stop.
 TAIL_RATIO_LEN = 5
@@ -49,6 +49,72 @@ def divisors(n):
             divs.add(i)
             divs.add(n // i)
     return sorted(divs)
+
+def better_crochet_instructions(base, target):
+    if target < base:
+        raise ValueError("This script handles increases only")
+
+    ratio = target / base
+    hi_f, lo_f = math.ceil(ratio), math.floor(ratio)
+    if hi_f == lo_f:
+        return stitch_str(base, ratio)
+
+    min_stitches = lo_f * base
+    n_hi = target - min_stitches
+    n_subgroups = n_hi
+    n_lo = base - n_hi
+    min_lo_per_group = n_lo // n_subgroups
+    extra_los = n_lo % n_subgroups
+    if extra_los == 0:
+        steps = [stitch_str(1, hi_f), stitch_str(min_lo_per_group, lo_f)]
+        return stitch_group(n_subgroups, steps)
+    if extra_los == 1:
+        main_steps = [stitch_str(1, hi_f), stitch_str(min_lo_per_group, lo_f)]
+        main_str = stitch_group(n_subgroups, main_steps)
+        steps = [main_str, stitch_str(1, lo_f)]
+        return stitch_group(1, steps)
+
+
+    normal_subgroups = n_subgroups - extra_los
+    ext_subgroups = extra_los
+    norm_steps = [stitch_str(1, hi_f), stitch_str(min_lo_per_group, lo_f)]
+    norm_str = stitch_group(normal_subgroups, norm_steps)
+    extended_steps = [stitch_str(1, hi_f), stitch_str(min_lo_per_group + 1, lo_f)]
+    ext_str = stitch_group(ext_subgroups, extended_steps)
+    return stitch_group(1, [norm_str, ext_str])
+
+def stitch_group(n_repeat, steps):
+    steps = [s for s in steps if s]
+    if len(steps) == 1:
+        step = steps[0]
+        if n_repeat == 1:
+            return step
+        if step.isalpha():
+            return f'{n_repeat}{step}'
+
+    steps_str = ", ".join(steps)
+    if n_repeat == 1:
+        return steps_str
+    return f'{n_repeat}[{steps_str}]'
+
+def stitch_str(n_repeat, n_factor):
+    if n_repeat < 0 or n_factor < 0:
+        raise ValueError("Positive values only")
+
+    if n_factor == 1:
+        stitch_desc = "sc"
+    elif n_factor == 2:
+        stitch_desc = "inc"
+    else:
+        stitch_desc = f"{n_factor:.0f}sc in 1"
+
+    if n_repeat == 0:
+        return ''
+    elif n_repeat == 1:
+        return stitch_desc
+    if n_repeat > 1 and n_factor <= 2:
+        return f"{n_repeat}{stitch_desc}"
+    return f"{n_repeat}[{stitch_desc}]"
 
 def crochet_instructions(target, base, row_num):
     if target < base:
@@ -108,7 +174,7 @@ def save_instructions(r=R, h=HEIGHT, tail_len=None, num_rows=None):
         raise TypeError("Exactly one of 'tail_len' or 'num_rows' must be provided")
 
     end_type = f"asymptotic-{tail_len}" if tail_len is not None else f"n_rows-{num_rows}"
-    path_str = f"out/height-{h:.2f}cm/radius-{r:.2f}/{end_type}.txt"
+    path_str = f"output/height-{h:.2f}cm/radius-{r:.2f}/{end_type}.txt"
     path = Path(path_str)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w+') as f:
@@ -133,7 +199,7 @@ def table_str(r=R, h=HEIGHT, tail_len=None, num_rows=None):
         numer, denom = factor_denominator_approx(cn_cn1, stitches_in_round)
         base_st = stitches_in_round
         target_st = stitches_in_round * numer // denom
-        pattern = crochet_instructions(target_st, base_st, n)
+        pattern = better_crochet_instructions(base_st, target_st)
         stitches_in_round = target_st
 
         f_str = f"{numer}/{denom}"
@@ -147,7 +213,16 @@ def table_str(r=R, h=HEIGHT, tail_len=None, num_rows=None):
     st = util.grid_str(grid)
     return st
 
+def test():
+    base = 11
+    for target in range(base,base*3+1):
+        # if target not in [13, 16, 17, 21]:
+        #     continue
+        i = better_crochet_instructions(base, target)
+        print(f'({base}->{target}): {i}')
+
 def main():
+    # test()
     if TAIL_RATIO_LEN and TAIL_RATIO_LEN > 0:
         save_instructions(r=R, h=HEIGHT, tail_len=TAIL_RATIO_LEN)
     elif NUM_ROWS and NUM_ROWS > 0:
