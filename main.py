@@ -23,10 +23,12 @@ TAIL_RATIO_LEN = 5
 # Or, if you prefer, just set a fixed number of rows:
 NUM_ROWS = -1
 
+
 def C_builder(r, h):
     def C(n):
         """Calculate the circumference of a circle in the hyperbolic plane."""
         return 2 * pi * r * sinh(n * h / R)
+
     return C
 
 
@@ -42,6 +44,7 @@ def factor_denominator_approx(x, s):
 
     return best[1], best[2]
 
+
 def divisors(n):
     divs = set()
     for i in range(1, int(math.isqrt(n)) + 1):
@@ -50,7 +53,8 @@ def divisors(n):
             divs.add(n // i)
     return sorted(divs)
 
-def better_crochet_instructions(base, target):
+
+def crochet_instructions(base, target):
     if target < base:
         raise ValueError("This script handles increases only")
 
@@ -66,22 +70,22 @@ def better_crochet_instructions(base, target):
     min_lo_per_group = n_lo // n_subgroups
     extra_los = n_lo % n_subgroups
     if extra_los == 0:
-        steps = [stitch_str(1, hi_f), stitch_str(min_lo_per_group, lo_f)]
+        steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f)]
         return stitch_group(n_subgroups, steps)
     if extra_los == 1:
-        main_steps = [stitch_str(1, hi_f), stitch_str(min_lo_per_group, lo_f)]
+        main_steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f)]
         main_str = stitch_group(n_subgroups, main_steps)
         steps = [main_str, stitch_str(1, lo_f)]
         return stitch_group(1, steps)
 
-
     normal_subgroups = n_subgroups - extra_los
     ext_subgroups = extra_los
-    norm_steps = [stitch_str(1, hi_f), stitch_str(min_lo_per_group, lo_f)]
+    norm_steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f), ]
     norm_str = stitch_group(normal_subgroups, norm_steps)
-    extended_steps = [stitch_str(1, hi_f), stitch_str(min_lo_per_group + 1, lo_f)]
+    extended_steps = [stitch_str(min_lo_per_group + 1, lo_f), stitch_str(1, hi_f)]
     ext_str = stitch_group(ext_subgroups, extended_steps)
     return stitch_group(1, [norm_str, ext_str])
+
 
 def stitch_group(n_repeat, steps):
     steps = [s for s in steps if s]
@@ -95,7 +99,11 @@ def stitch_group(n_repeat, steps):
     steps_str = ", ".join(steps)
     if n_repeat == 1:
         return steps_str
-    return f'{n_repeat}[{steps_str}]'
+    padding = ''
+    if any(['[' in step for step in steps]):
+        padding = ' '
+    return f'{n_repeat}[{padding}{steps_str}{padding}]'
+
 
 def stitch_str(n_repeat, n_factor):
     if n_repeat < 0 or n_factor < 0:
@@ -116,58 +124,6 @@ def stitch_str(n_repeat, n_factor):
         return f"{n_repeat}{stitch_desc}"
     return f"{n_repeat}[{stitch_desc}]"
 
-def crochet_instructions(target, base, row_num):
-    if target < base:
-        raise ValueError("This script handles increases only")
-
-    incs = target - base
-    if incs == 0:
-        return f"{base}sc"
-    if incs == base:
-        return f"{base}inc"
-    if incs > base:
-        raise ValueError("This script handles only increases less than double the stitches")
-
-    remaining = target - (incs * 2)
-    sc_between = remaining // incs
-
-    # This is a weird edge case where there are technically no sc between increases, so we flip sc and inc
-    if sc_between == 0:
-        scs = remaining
-        body = f"{scs}[sc, inc]"
-
-        remaining_incs = target - (scs * 3)
-        tail = remaining_incs // 2
-        head = remaining_incs - tail
-        parts = [inc(head), body, inc(tail)]
-        return ", ".join(parts)
-
-    sub_group_len = sc_between + 2 # Nsc, inc
-    remainder = target - (sub_group_len * incs)
-
-    parts = []
-    # Main repeat block
-    sc_part = "sc" if sc_between == 1 else f"{sc_between}sc"
-    parts.append(f"{incs}[{sc_part}, inc]")
-
-    # Extra stitches
-    if remainder:
-        if remainder == 1:
-            parts.append("sc")
-        elif row_num % 2:  # Odd row
-            tail = remainder // 2
-            head = remainder - tail
-            parts = [sc(head)] + parts + [sc(tail)]
-        else:
-            parts.append(sc(remainder))
-
-    return ", ".join(parts)
-
-def sc(n):
-    return "sc" if n == 1 else f"{n}sc"
-
-def inc(n):
-    return "inc" if n == 1 else f"{n}inc"
 
 def save_instructions(r=R, h=HEIGHT, tail_len=None, num_rows=None):
     if (tail_len is None) == (num_rows is None):
@@ -180,6 +136,7 @@ def save_instructions(r=R, h=HEIGHT, tail_len=None, num_rows=None):
     with open(path, 'w+') as f:
         table = table_str(r=R, h=HEIGHT, tail_len=tail_len, num_rows=num_rows)
         f.write(table)
+
 
 def table_str(r=R, h=HEIGHT, tail_len=None, num_rows=None):
     if (tail_len is None) == (num_rows is None):
@@ -199,7 +156,10 @@ def table_str(r=R, h=HEIGHT, tail_len=None, num_rows=None):
         numer, denom = factor_denominator_approx(cn_cn1, stitches_in_round)
         base_st = stitches_in_round
         target_st = stitches_in_round * numer // denom
-        pattern = better_crochet_instructions(base_st, target_st)
+        pattern = crochet_instructions(denom, numer)
+        if denom != base_st:
+            n_repeat = base_st // denom
+            pattern = stitch_group(n_repeat, [pattern])
         stitches_in_round = target_st
 
         f_str = f"{numer}/{denom}"
@@ -213,13 +173,15 @@ def table_str(r=R, h=HEIGHT, tail_len=None, num_rows=None):
     st = util.grid_str(grid)
     return st
 
+
 def test():
     base = 11
-    for target in range(base,base*3+1):
+    for target in range(base, base * 3 + 1):
         # if target not in [13, 16, 17, 21]:
         #     continue
-        i = better_crochet_instructions(base, target)
+        i = crochet_instructions(base, target)
         print(f'({base}->{target}): {i}')
+
 
 def main():
     # test()
