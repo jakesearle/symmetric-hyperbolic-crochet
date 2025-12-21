@@ -15,21 +15,21 @@ import util
 # Measure the middle 10 rows and divide by 10.
 HEIGHT = 0.6
 
-# Radius of the finished hyperbolic plane in cm
-R = 3.5
-
 # If the value "C(n) / C(n-1)" is unchanged after this many rows, stop.
-TAIL_RATIO_LEN = 5
+TAIL_RATIO_LEN = -1
 # Or, if you prefer, just set a fixed number of rows:
-NUM_ROWS = -1
+NUM_ROWS = 100
 
 
-def C_builder(r, h):
-    def C(n):
+def hyperbolic_c_builder(h):
+    def func(n):
         """Calculate the circumference of a circle in the hyperbolic plane."""
-        return 2 * pi * r * sinh(n * h / R)
+        # Radius of the hyperbolic plane
+        # For the sake of ratios, this doesn't matter
+        r = 3.5
+        return 2 * pi * r * sinh(n * h / r)
 
-    return C
+    return func
 
 
 def factor_denominator_approx(x, s):
@@ -100,7 +100,7 @@ def stitch_group(n_repeat, steps):
     if n_repeat == 1:
         return steps_str
     padding = ''
-    if any(['[' in step for step in steps]):
+    if any('[' in step for step in steps):
         padding = ' '
     return f'{n_repeat}[{padding}{steps_str}{padding}]'
 
@@ -125,34 +125,35 @@ def stitch_str(n_repeat, n_factor):
     return f"{n_repeat}[{stitch_desc}]"
 
 
-def save_instructions(r=R, h=HEIGHT, tail_len=None, num_rows=None):
+def save_instructions(h=HEIGHT, tail_len=None, num_rows=None):
     if (tail_len is None) == (num_rows is None):
         raise TypeError("Exactly one of 'tail_len' or 'num_rows' must be provided")
 
-    end_type = f"asymptotic-{tail_len}" if tail_len is not None else f"n_rows-{num_rows}"
-    path_str = f"output/height-{h:.2f}cm/radius-{r:.2f}/{end_type}.txt"
+    table = generate_table(h=HEIGHT, tail_len=tail_len, num_rows=num_rows)
+    rows_generated = len(table) - 1
+    path_str = f"output/height-{h:.2f}cm/rows-{rows_generated}.txt"
     path = Path(path_str)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w+') as f:
-        table = table_str(r=R, h=HEIGHT, tail_len=tail_len, num_rows=num_rows)
-        f.write(table)
+        t_string = util.grid_str(table)
+        f.write(t_string)
 
 
-def table_str(r=R, h=HEIGHT, tail_len=None, num_rows=None):
+def generate_table(h=HEIGHT, tail_len=None, num_rows=None):
     if (tail_len is None) == (num_rows is None):
         raise TypeError("Exactly one of 'tail_len or 'num_rows' must be provided")
     if tail_len is not None:
         num_rows = 1000  # Arbitrary large number
 
-    C = C_builder(r, h)
+    circum_func = hyperbolic_c_builder(h)
 
     grid = [
         ['Row', 'C(n)', 'C(n) / C(n-1)', 'Nearby fraction', 'Increase ratio', 'Pattern', 'Est. st.'],
-        [1, f'{C(1):.2f}', '', '', '', '6sc in a magic ring', '(6)'],
+        [1, f'{circum_func(1):.2f}', '', '', '', '6sc in a magic ring', '(6)'],
     ]
     stitches_in_round = 6
     for n in range(2, num_rows + 1):
-        cn_cn1 = C(n) / C(n - 1)
+        cn_cn1 = circum_func(n) / circum_func(n - 1)
         numer, denom = factor_denominator_approx(cn_cn1, stitches_in_round)
         base_st = stitches_in_round
         target_st = stitches_in_round * numer // denom
@@ -164,14 +165,13 @@ def table_str(r=R, h=HEIGHT, tail_len=None, num_rows=None):
 
         f_str = f"{numer}/{denom}"
         ir_str = f'{numer} in {denom}st'
-        grid.append([n, f'{C(n):.2f}', f'{cn_cn1:.2f}', f_str, ir_str, pattern, f'({stitches_in_round})'])
+        grid.append([n, f'{circum_func(n):.2f}', f'{cn_cn1:.2f}', f_str, ir_str, pattern, f'({stitches_in_round})'])
 
         if TAIL_RATIO_LEN:
             tail_ratios = [row[2] for row in grid[-TAIL_RATIO_LEN:]]
             if len(set(tail_ratios)) == 1:
                 break
-    st = util.grid_str(grid)
-    return st
+    return grid
 
 
 def test():
@@ -182,22 +182,15 @@ def test():
         i = crochet_instructions(base, target)
         print(f'({base}->{target}): {i}')
 
-
-def generate_default_files():
-    rs = [1, 3, 3.5, 4.0, 5.0, 9.0]
-    for r in rs:
-        save_instructions(r=r, h=HEIGHT, tail_len=TAIL_RATIO_LEN)
-
-
 def generate_one_off():
     if TAIL_RATIO_LEN and TAIL_RATIO_LEN > 0:
-        save_instructions(r=R, h=HEIGHT, tail_len=TAIL_RATIO_LEN)
+        save_instructions(h=HEIGHT, tail_len=TAIL_RATIO_LEN)
     elif NUM_ROWS and NUM_ROWS > 0:
-        save_instructions(r=R, h=HEIGHT, num_rows=NUM_ROWS)
+        save_instructions(h=HEIGHT, num_rows=NUM_ROWS)
 
 
 def main():
-    generate_default_files()
+    generate_one_off()
 
 
 if __name__ == '__main__':
