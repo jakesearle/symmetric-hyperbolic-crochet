@@ -183,12 +183,21 @@ def test():
         print(f'({base}->{target}): {i}')
 
 
-def main():
-    # test()
+def generate_default_files():
+    rs = [1, 3, 3.5, 4.0, 5.0, 9.0]
+    for r in rs:
+        save_instructions(r=r, h=HEIGHT, tail_len=TAIL_RATIO_LEN)
+
+
+def generate_one_off():
     if TAIL_RATIO_LEN and TAIL_RATIO_LEN > 0:
         save_instructions(r=R, h=HEIGHT, tail_len=TAIL_RATIO_LEN)
     elif NUM_ROWS and NUM_ROWS > 0:
         save_instructions(r=R, h=HEIGHT, num_rows=NUM_ROWS)
+
+
+def main():
+    generate_default_files()
 
 
 if __name__ == '__main__':
