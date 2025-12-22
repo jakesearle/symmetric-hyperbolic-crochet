@@ -1,9 +1,15 @@
-import math
 from math import pi
 from math import sinh
 from pathlib import Path
 
+import crochet
+import grid
 import util
+from util import sin_deg
+
+# My yarn types and how tall they are
+PINK_MEDIUM = 0.60
+RED_STUDIO_CLASSIC = 0.65
 
 # Height of a crochet row in cm
 #
@@ -13,13 +19,7 @@ import util
 #   Row 1: 1sc in each ch (10), turn
 #   Row 2-12: 10sc (10), turn
 # Measure the middle 10 rows and divide by 10.
-RED_STUDIO_CLASSIC = 0.65
 HEIGHT = RED_STUDIO_CLASSIC
-
-# If the value "C(n) / C(n-1)" is unchanged after this many rows, stop.
-TAIL_RATIO_LEN = -1
-# Or, if you prefer, just set a fixed number of rows:
-NUM_ROWS = 100
 
 
 def hyperbolic_c_builder(h):
@@ -32,11 +32,13 @@ def hyperbolic_c_builder(h):
 
     return func
 
-def conical_c_builder(theta, h):
+
+def conical_c_builder(h, theta):
     tip_h = h / sin_deg(theta)
+
     def func(n):
         """Calculate the circumference of a cone in a circle."""
-        h_s = (n - 1) * h # Stitched slope height
+        h_s = (n - 1) * h  # Stitched slope height
         r = (tip_h + h_s) * sin_deg(theta)
 
         return 2 * pi * r
@@ -49,99 +51,6 @@ SHAPE_BUILDERS = {
     "cone": conical_c_builder,
 }
 
-def factor_denominator_approx(x, s):
-    best = None  # (error, a, b)
-
-    for b in divisors(s):
-        a = round(x * b)
-        err = abs(x - a / b)
-
-        if best is None or err < best[0]:
-            best = (err, a, b)
-
-    return best[1], best[2]
-
-
-def divisors(n):
-    divs = set()
-    for i in range(1, int(math.isqrt(n)) + 1):
-        if n % i == 0:
-            divs.add(i)
-            divs.add(n // i)
-    return sorted(divs)
-
-
-def crochet_instructions(base, target):
-    if target < base:
-        raise ValueError("This script handles increases only")
-
-    ratio = target / base
-    hi_f, lo_f = math.ceil(ratio), math.floor(ratio)
-    if hi_f == lo_f:
-        return stitch_str(base, ratio)
-
-    min_stitches = lo_f * base
-    n_hi = target - min_stitches
-    n_subgroups = n_hi
-    n_lo = base - n_hi
-    min_lo_per_group = n_lo // n_subgroups
-    extra_los = n_lo % n_subgroups
-    if extra_los == 0:
-        steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f)]
-        return stitch_group(n_subgroups, steps)
-    if extra_los == 1:
-        main_steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f)]
-        main_str = stitch_group(n_subgroups, main_steps)
-        steps = [main_str, stitch_str(1, lo_f)]
-        return stitch_group(1, steps)
-
-    normal_subgroups = n_subgroups - extra_los
-    ext_subgroups = extra_los
-    norm_steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f), ]
-    norm_str = stitch_group(normal_subgroups, norm_steps)
-    extended_steps = [stitch_str(min_lo_per_group + 1, lo_f), stitch_str(1, hi_f)]
-    ext_str = stitch_group(ext_subgroups, extended_steps)
-    return stitch_group(1, [norm_str, ext_str])
-
-
-def stitch_group(n_repeat, steps):
-    steps = [s for s in steps if s]
-    if len(steps) == 1:
-        step = steps[0]
-        if n_repeat == 1:
-            return step
-        if step.isalpha():
-            return f'{n_repeat}{step}'
-
-    steps_str = ", ".join(steps)
-    if n_repeat == 1:
-        return steps_str
-    padding = ''
-    if any('[' in step for step in steps):
-        padding = ' '
-    return f'{n_repeat}[{padding}{steps_str}{padding}]'
-
-
-def stitch_str(n_repeat, n_factor):
-    if n_repeat < 0 or n_factor < 0:
-        raise ValueError("Positive values only")
-
-    if n_factor == 1:
-        stitch_desc = "sc"
-    elif n_factor == 2:
-        stitch_desc = "inc"
-    else:
-        stitch_desc = f"{n_factor:.0f}sc in 1"
-
-    if n_repeat == 0:
-        return ''
-    elif n_repeat == 1:
-        return stitch_desc
-    if n_repeat > 1 and n_factor <= 2:
-        return f"{n_repeat}{stitch_desc}"
-    return f"{n_repeat}[{stitch_desc}]"
-
-
 def save_instructions(shape_name, c_method, h=HEIGHT, tail_len=None, num_rows=None):
     if (tail_len is None) == (num_rows is None):
         raise TypeError("Exactly one of 'tail_len' or 'num_rows' must be provided")
@@ -152,7 +61,7 @@ def save_instructions(shape_name, c_method, h=HEIGHT, tail_len=None, num_rows=No
     path = Path(path_str)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w+') as f:
-        t_string = util.grid_str(table)
+        t_string = grid.build_str(table)
         f.write(t_string)
 
 
@@ -162,47 +71,36 @@ def generate_table(c_method, tail_len=None, num_rows=None):
     if tail_len is not None:
         num_rows = 1000  # Arbitrary large number
 
-    grid = [
+    table = [
         ['Row', 'C(n)', 'C(n) / C(n-1)', 'Nearby fraction', 'Increase ratio', 'Pattern', 'Est. st.'],
         [1, f'{c_method(1):.2f}', '', '', '', '6sc in a magic ring', '(6)'],
     ]
     stitches_in_round = 6
     for n in range(2, num_rows + 1):
         cn_cn1 = c_method(n) / c_method(n - 1)
-        numer, denom = factor_denominator_approx(cn_cn1, stitches_in_round)
+        numer, denom = util.fraction_approx_of_divisors(cn_cn1, stitches_in_round)
         base_st = stitches_in_round
         target_st = stitches_in_round * numer // denom
-        pattern = crochet_instructions(denom, numer)
+        pattern = crochet.crochet_instructions(denom, numer)
         if denom != base_st:
             n_repeat = base_st // denom
-            pattern = stitch_group(n_repeat, [pattern])
+            pattern = crochet.stitch_group(n_repeat, [pattern])
         stitches_in_round = target_st
 
         f_str = f"{numer}/{denom}"
         ir_str = f'{numer} in {denom}st'
-        grid.append([n, f'{c_method(n):.2f}', f'{cn_cn1:.2f}', f_str, ir_str, pattern, f'({stitches_in_round})'])
+        table.append([n, f'{c_method(n):.2f}', f'{cn_cn1:.2f}', f_str, ir_str, pattern, f'({stitches_in_round})'])
 
         if tail_len:
-            tail_ratios = [row[2] for row in grid[-tail_len:]]
+            tail_ratios = [row[2] for row in table[-tail_len:]]
             if len(set(tail_ratios)) == 1:
                 break
-    return grid
-
-def sin_deg(degs):
-    return math.sin(degs * math.pi / 180)
-
-def test():
-    base = 11
-    for target in range(base, base * 3 + 1):
-        # if target not in [13, 16, 17, 21]:
-        #     continue
-        i = crochet_instructions(base, target)
-        print(f'({base}->{target}): {i}')
+    return table
 
 
 def main():
     shape_name = "cone"
-    c_method = SHAPE_BUILDERS[shape_name](60, HEIGHT)
+    c_method = SHAPE_BUILDERS[shape_name](HEIGHT, 60)
     save_instructions(shape_name, c_method, tail_len=5)
 
 
