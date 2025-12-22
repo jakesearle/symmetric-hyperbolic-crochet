@@ -21,11 +21,15 @@ def crochet_instructions(base, target):
         if min_lo_per_group % 2 == 0:
             los = min_lo_per_group // 2
             steps = [stitch_str(los, lo_f), stitch_str(1, hi_f), stitch_str(los, lo_f)]
-            return stitch_group(n_subgroups, steps)
-        steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f)]
+        else:
+            steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f)]
         return stitch_group(n_subgroups, steps)
     if extra_los == 1:
-        main_steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f)]
+        if min_lo_per_group % 2 == 0:
+            los = min_lo_per_group // 2
+            main_steps = [stitch_str(los, lo_f), stitch_str(1, hi_f), stitch_str(los, lo_f)]
+        else:
+            main_steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f)]
         main_str = stitch_group(n_subgroups, main_steps)
         steps = [main_str, stitch_str(1, lo_f)]
         return stitch_group(1, steps)
