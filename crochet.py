@@ -17,6 +17,11 @@ def crochet_instructions(base, target):
     min_lo_per_group = n_lo // n_subgroups
     extra_los = n_lo % n_subgroups
     if extra_los == 0:
+        # Split if even numbered
+        if min_lo_per_group % 2 == 0:
+            los = min_lo_per_group // 2
+            steps = [stitch_str(los, lo_f), stitch_str(1, hi_f), stitch_str(los, lo_f)]
+            return stitch_group(n_subgroups, steps)
         steps = [stitch_str(min_lo_per_group, lo_f), stitch_str(1, hi_f)]
         return stitch_group(n_subgroups, steps)
     if extra_los == 1:
