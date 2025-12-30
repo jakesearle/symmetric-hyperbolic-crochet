@@ -26,13 +26,13 @@ class Shape(ABC):
     def make_instructions(self):
         pass
 
-    @staticmethod
-    def save_instruction_file(table, path_str):
+    def save_instruction_file(self, table, path_str):
         path = Path(path_str)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, 'w+') as f:
+            header = f"{self.get_header()}\n\n"
             t_string = grid.build_str(table)
-            f.write(t_string)
+            f.write(header + t_string)
 
     def generate_table(self, c_method):
         table = [
@@ -61,6 +61,11 @@ class Shape(ABC):
                     break
         return table
 
+    @abstractmethod
+    def get_header(self):
+        pass
+
+
 class Cone(Shape):
     def __init__(self, theta, stitch_height=None, tail_len=None, num_rows=None):
         Shape.__init__(self, stitch_height=stitch_height, tail_len=tail_len, num_rows=num_rows)
@@ -75,16 +80,18 @@ class Cone(Shape):
         self.save_instruction_file(table, path_str)
 
     def circumference_builder(self):
-        tip_h = self.stitch_height / util.sin_deg(self.theta)
+        half_angle = self.theta / 2
+        tip_h = self.stitch_height / util.sin_deg(half_angle)
 
         def func(n):
             """Calculate the circumference of a cone in a circle."""
             h_s = (n - 1) * self.stitch_height  # Stitched slope height
-            r = (tip_h + h_s) * util.sin_deg(self.theta)
-
+            r = (tip_h + h_s) * util.sin_deg(half_angle)
             return 2 * math.pi * r
-
         return func
+
+    def get_header(self):
+        return f"Cone where:\nStitch height = {self.stitch_height}cm\ntheta = {self.theta:.2f}°"
 
 class HyperbolicPlane(Shape):
     def __init__(self, radius, stitch_height=None, tail_len=None, num_rows=None):
@@ -105,4 +112,7 @@ class HyperbolicPlane(Shape):
             return 2 * math.pi * self.radius * math.sinh(n * self.stitch_height / self.radius)
 
         return func
+
+    def get_header(self):
+        return f"Hyperbolic plane where:\nStitch height = {self.stitch_height}cm\nRadius = {self.radius:.2f}cm"
 

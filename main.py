@@ -17,7 +17,7 @@ STITCH_HEIGHT = RED_STUDIO_CLASSIC
 
 def make_standard_instructions():
     # Cones
-    angles = [10, 17, 30, 45, 60]
+    angles = [20, 34, 60, 90, 120]
     for a in angles:
         model.Cone(a, stitch_height=STITCH_HEIGHT, num_rows=15).make_instructions()
 

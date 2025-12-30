@@ -1,3 +1,7 @@
+Hyperbolic plane where:
+Stitch height = 0.65cm
+Radius = 9.00cm
+
  Row │  C(n)  │ C(n) / C(n-1) │ Nearby fraction │ Increase ratio │             Pattern             │ Est. st. 
 ─────┼────────┼───────────────┼─────────────────┼────────────────┼─────────────────────────────────┼──────────
   1  │  4.09  │               │                 │                │       6sc in a magic ring       │   (6)    
