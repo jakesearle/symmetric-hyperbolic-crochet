@@ -3,6 +3,7 @@ import model
 # My yarn types and how tall they are
 PINK_MEDIUM = 0.60
 RED_STUDIO_CLASSIC = 0.65
+RED_STUDIO_CLASSIC_PINK_YU_YO = 0.58
 
 # Height of a crochet row in cm
 #
@@ -16,15 +17,17 @@ STITCH_HEIGHT = RED_STUDIO_CLASSIC
 
 
 def make_standard_instructions():
-    # Cones
-    angles = [20, 34, 60, 90, 120]
-    for a in angles:
-        model.Cone(a, stitch_height=STITCH_HEIGHT, num_rows=15).make_instructions()
+    heights = [RED_STUDIO_CLASSIC, RED_STUDIO_CLASSIC_PINK_YU_YO]
+    for h in heights:
+        # Cones
+        angles = [20, 34, 60, 90, 120]
+        for a in angles:
+            model.Cone(a, stitch_height=h, num_rows=15).make_instructions()
 
-    # Hyperbolic Planes
-    radii = [1.0, 3.0, 3.5, 4.0, 9.0]
-    for r in radii:
-        model.HyperbolicPlane(r, stitch_height=STITCH_HEIGHT, tail_len=5).make_instructions()
+        # Hyperbolic Planes
+        radii = [1.0, 3.0, 3.5, 4.0, 9.0]
+        for r in radii:
+            model.HyperbolicPlane(r, stitch_height=h, tail_len=5).make_instructions()
 
 def main():
     make_standard_instructions()
